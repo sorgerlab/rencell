@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from msda import enrichr_api as ai
 from msda.clustering import plot_clustermap as pc
+from msda import mapping
 
 # Load files from synapse
 # -----------------------
@@ -39,7 +40,7 @@ df_meta = pd.DataFrame(list(zip(samples, set_, days)),
 color_dict = {'Set1': (0.97656, 0.19531, 0.19531),
               'Set2': (0.13672, 0.23438, 0.99609)}
 
-df_pca, ev = pca.compute_pca(dfk, df_meta)
+df_pca, ev = pca.compute_pca(dfc, df_meta)
 dfp = pca.plot_scatter(df_pca, ev, color_col='set',
                        color_dict=color_dict) #  annotate_points='day')
 plt.savefig('ms_PCA.pdf', dpi=300)
@@ -61,6 +62,9 @@ cluster_map = {9: 'transiently upregulated early',
                10: 'downregulated'}
 dfk['kmeans_cluster_name'] = dfk['kmeans_cluster_number'].map(
     cluster_map)
+
+dfk.insert(2, 'HGNC_Gene_Name', [mapping.get_name_from_symbol(sy)
+                                 for sy in dfk.Gene_Symbol.tolist()])
 
 prtns = ['CDK1', 'CDK2', 'CDK4', 'CDK6',
          'CDK7', 'CDK8', 'CDK9', 'CDK12', 'CDK13',
@@ -150,10 +154,10 @@ def plot_barplots(df, df_meta, ftr):
     fig, ax = plt.subplots(figsize=(2, 5))
     df4.plot(kind='barh', color='blue', alpha=0.7, ax=ax)
     ax.set_title(ftr, fontweight='bold', fontsize=18)
-    ax.tickparams(labelsize=18)
+    ax.tick_params(labelsize=18)
     ax = plt.gca()
     ax.invert_yaxis()
-    plt.subplots_adjust(left=0.2)
+    plt.subplots_adjust(left=0.25)
     plt.savefig('mean_barplot_%s.pdf' % ftr, dpi=300)
 
 ftrs = ['TUBB3', 'GFAP', 'PLP1', 'SYP',

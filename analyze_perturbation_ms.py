@@ -9,6 +9,7 @@ import seaborn as sns
 from msda import enrichr_api as ai
 from scipy.stats import ttest_1samp
 from msda import scatter
+from msda import mapping
 
 syn = synapseclient.Synapse()
 syn.login()
@@ -33,18 +34,27 @@ def change_op(df):
 df_dmso = pd.read_csv(open(syn.get('syn11701294').path))
 df_dmso = df_dmso.set_index('Gene_Symbol', drop=False)
 df_dmso = change_op(df_dmso)
+df_dmso.insert(2, 'HGNC_Gene_Name', [mapping.get_name_from_symbol(sy)
+                                     for sy in df_dmso.Gene_Symbol.tolist()])
+df_dmso.to_csv('total_proteome_DMSO.csv', index=False)
 df_dmso = pr.merge_duplicate_features(df_dmso)
 df_dmso = normalize(df_dmso)
 
 df_ken = pd.read_csv(open(syn.get('syn11701292').path))
 df_ken = df_ken.set_index('Gene_Symbol', drop=False)
 df_ken = change_op(df_ken)
+df_ken.insert(2, 'HGNC_Gene_Name', [mapping.get_name_from_symbol(sy)
+                                    for sy in df_ken.Gene_Symbol.tolist()])
+df_ken.to_csv('total_proteome_kenpaullone.csv', index=False)
 df_ken = pr.merge_duplicate_features(df_ken)
 df_ken = normalize(df_ken)
 
 df_mev = pd.read_csv(open(syn.get('syn11701293').path))
 df_mev = df_mev.set_index('Gene_Symbol', drop=False)
 df_mev = change_op(df_mev)
+df_mev.insert(2, 'HGNC_Gene_Name', [mapping.get_name_from_symbol(sy)
+                                    for sy in df_mev.Gene_Symbol.tolist()])
+df_mev.to_csv('total_proteome_mevastatin.csv', index=False)
 df_mev = pr.merge_duplicate_features(df_mev)
 df_mev = normalize(df_mev)
 

@@ -9,7 +9,7 @@ from msda import pca
 from msda import kmeans
 from msda.clustering import plot_clustermap as pc
 from msda import enrichr_api as ai
-
+from msda import mapping
 
 # Load individual 10-plexes, process and
 # normalize data into a single dataset.
@@ -78,6 +78,9 @@ cluster_map = {2: 'upregulated',
                7: 'downregulated early'}
 dfk['kmeans_cluster_name'] = dfk['kmeans_cluster_number'].map(
     cluster_map)
+dfk.insert(1, 'HGNC_Gene_Name', [mapping.get_name_from_symbol(sy)
+                                 for sy in dfk.Gene_Symbol.tolist()])
+dfk.to_csv('phosphoMS_baseline.csv')
 
 dfk2 = dfk[dfk.kmeans_cluster_name != 'unperturbed'].copy()
 fig = kmeans.plot(dfk2, df_meta, 'day',
