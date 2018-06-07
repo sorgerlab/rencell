@@ -98,6 +98,7 @@ def get_neuronal_enrichment(df):
                     values='Adjusted P-value')
     return dfp
 
+dfk.index = dfk.Gene_Symbol.tolist()
 dfp = get_neuronal_enrichment(dfk)
 dfp = dfp.apply(np.log10).multiply(-1)
 pc(dfp.fillna(0), 'MS_neuronal_enrichment.pdf',
@@ -121,13 +122,43 @@ def plot_enrichment(dfi, col):
     try:
         dfs.plot(kind='barh', x=dfs.index, y=col,
                  color='b', alpha=0.8, legend=False, ax=ax)
-        plt.xlabel('- log10(p-value)', fontweight='bold', fontsize=12)
+        ax.tick_params(labelsize=18)
+        plt.xlabel('- log10(p-value)', fontweight='bold', fontsize=24)
         plt.ylabel('Neuronal differentiation related GO Terms',
                    fontweight='bold',
-                   rotation=90, fontsize=12)
-        plt.title(col, fontweight='bold', fontsize=12)
-        plt.subplots_adjust(left=0.45, right=0.99)
+                   rotation=90, fontsize=24)
+        plt.title(col, fontweight='bold', fontsize=24)
+        plt.subplots_adjust(left=0.7, right=0.9)
         col = col.replace(' ', '_')
-        plt.savefig("MS_enrichment_%s.pdf" % col, dpi=300)
+        plt.savefig("pMS_enrichment_%s.pdf" % col, dpi=300)
     except TypeError:
         pass
+
+
+def plot_barplots(df, df_meta, ftr):
+    sd = {s: d for s, d in zip(df_meta['sample'].tolist(),
+                               df_meta['day'].tolist())}
+    df2 = df.copy()
+    df2 = df2.rename(columns=sd)
+    df2.index = df2.Gene_Symbol.tolist()
+    df3 = df2[samples].copy()
+    df3 = df2[samples]
+    df4 = df3[samples].mean(axis=1, level=0)
+    df4 = df4.loc[ftr]
+    if type(df4) == pd.core.frame.DataFrame:
+        df4 = df4.mean(axis=0)
+    fig, ax = plt.subplots(figsize=(2, 5))
+    df4.plot(kind='barh', color='blue', alpha=0.7, ax=ax)
+    ax.set_title(ftr, fontweight='bold', fontsize=18)
+    ax.tickparams(labelsize=18)
+    ax = plt.gca()
+    ax.invert_yaxis()
+    plt.subplots_adjust(left=0.2)
+    plt.savefig('mean_barplot_%s.pdf' % ftr, dpi=300)
+
+ftrs = ['TUBB3', 'GFAP', 'PLP1', 'SYP',
+        'GAP43', 'MAP1B', 'MAP2', 'DCX',
+        'MKI67', 'MAPT']
+
+for ft in ftrs:
+    plot_barplots(df, df_meta, ft)
