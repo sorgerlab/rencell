@@ -7,6 +7,8 @@ from matplotlib.gridspec import GridSpec
 import numpy as np
 import seaborn as sns
 from msda import enrichr_api as ai
+from scipy.stats import ttest_1samp
+from msda import scatter
 
 syn = synapseclient.Synapse()
 syn.login()
@@ -84,9 +86,10 @@ prtns = ['NTN1', 'DCX', 'MAPT', 'HMGCR', 'GSK3A', 'GSK3B',
          'CDK1', 'CDK2',  'CDK4', 'CDK6', 'CDK5', 'CDK7',
          'CDK12', 'CDK9', 'CDK13']
 
-genes = ['ROBO3', 'RGS10', 'SLC6A6', 'HMGCR', 'KRT17',
+genes = ['ROBO3', 'RGS10', 'SLC6A6', 'HMGCR', 'TUBB3',
          'CCNA2', 'TK1', 'DCX', 'GSK3A', 'GSK3B',
-         'MAPT', 'NTN1', 'CDK1', 'CDK6', 'CDK12']
+         'MAPT', 'NTN1', 'CDK1', 'CDK6', 'CDK12',
+         'GFAP', 'PLP1']
 
 
 def plot_long_table(dfcc, prtns):
@@ -127,20 +130,20 @@ def plot_long_table(dfcc, prtns):
     return fig
 
 
-def get_delta(dfc):
-    mev_late = ['Mev_Day_7', 'Mev_Day_10', 'Mev_Day_14', 'Mev_Day_15']
-    ken_late = ['Ken_Day_7', 'Ken_Day_10', 'Ken_Day_14', 'Ken_Day_15']
-    dmso_late = ['DMSO_Day_7', 'DMSO_Day_10',
-                 'DMSO_Day_14', 'DMSO_Day_15']
-    dfc2 = dfc.copy()
-    dfc2['dmso_late_mean'] = dfc2[dmso_late].mean(axis=1)
-    dfc2['ken_late_mean'] = dfc2[ken_late].mean(axis=1)
-    dfc2['mev_late_mean'] = dfc2[mev_late].mean(axis=1)
-    dfc2['ken_delta'] = dfc2['ken_late_mean'] - dfc2['dmso_late_mean']
-    dfc2['mev_delta'] = dfc2['mev_late_mean'] - dfc2['dmso_late_mean']
-    dfc2['ken_delta'] = dfc2['ken_delta'].apply(np.abs)
-    dfc2['mev_delta'] = dfc2['mev_delta'].apply(np.abs)
-    return dfc2
+# def get_delta(dfc):
+#     mev_late = ['Mev_Day_7', 'Mev_Day_10', 'Mev_Day_14', 'Mev_Day_15']
+#     ken_late = ['Ken_Day_7', 'Ken_Day_10', 'Ken_Day_14', 'Ken_Day_15']
+#     dmso_late = ['DMSO_Day_7', 'DMSO_Day_10',
+#                  'DMSO_Day_14', 'DMSO_Day_15']
+#     dfc2 = dfc.copy()
+#     dfc2['dmso_late_mean'] = dfc2[dmso_late].mean(axis=1)
+#     dfc2['ken_late_mean'] = dfc2[ken_late].mean(axis=1)
+#     dfc2['mev_late_mean'] = dfc2[mev_late].mean(axis=1)
+#     dfc2['ken_delta'] = dfc2['ken_late_mean'] - dfc2['dmso_late_mean']
+#     dfc2['mev_delta'] = dfc2['mev_late_mean'] - dfc2['dmso_late_mean']
+#     dfc2['ken_delta'] = dfc2['ken_delta'].apply(np.abs)
+#     dfc2['mev_delta'] = dfc2['mev_delta'].apply(np.abs)
+#     return dfc2
 
 
 def get_delta_enrichment(df, cond='mev_delta',
@@ -154,3 +157,45 @@ def get_delta_enrichment(df, cond='mev_delta',
 
 dfcc = make_long_table(dfc, samples, genes)
 fig = plot_long_table(dfcc, genes)
+
+
+def get_delta(dfc):
+    late_days = ['7', '10', '14', '15']
+    dfc2 = dfc.copy()
+    for ld in late_days:
+        dfc2['ken_delta_%s' % ld] = dfc2['Ken_Day_%s' % ld] -\
+                                    dfc2['DMSO_Day_%s' % ld]
+        dfc2['mev_delta_%s' % ld] = dfc2['Mev_Day_%s' % ld] -\
+                                    dfc2['DMSO_Day_%s' % ld]
+    return dfc2
+
+
+def calc_ttest(dfc, treatment='ken_delta', title='kenpaullone',
+               fc_cutoff=2.5, pval_cutoff=1.3):
+    delta_cols = [s for s in dfc.columns.tolist() if treatment in s]
+    dt = dfc[delta_cols].copy()
+    test, pval = ttest_1samp(dt, 0, axis=1)
+    dt['mean_fold_change'] = dt[delta_cols].mean(axis=1)
+    dt['ttest'] = test
+    dt['pvalue'] = pval
+    dt['pvalue'] = dt['pvalue'].apply(np.log10).multiply(-1)
+    dt = dt.dropna()
+    fig, ax = plt.subplots()
+    scatter.plot(dt, x_col='mean_fold_change', y_col='pvalue',
+                 size_scale=10, ax=ax, default_alpha=0.5)
+    ax.set_title(title, fontweight='bold', fontsize=18)
+    
+    dtt = dt[((dt.mean_fold_change > fc_cutoff) & (dt.pvalue > pval_cutoff)) |
+             ((dt.mean_fold_change < -fc_cutoff) & (dt.pvalue > pval_cutoff))]
+    dtt['name'] = dtt.index.tolist()
+    scatter.plot(dtt, x_col='mean_fold_change', y_col='pvalue',
+                 size_scale=10, ax=ax, default_alpha=0.5, color='red',
+                 annotate_points='name')
+    ax.set_xlabel(u'\u0394 log2(fold-change)', fontweight='bold', fontsize=10)
+    ax.set_ylabel('-log10(p-value)', fontweight='bold', fontsize=10)
+    return dt
+
+
+dfc3 = get_delta(dfc2)
+dt = calc_ttest(dfc3)
+dts = calc_ttest(dfc3, treatment='mev_delta', title='mevastatin')
