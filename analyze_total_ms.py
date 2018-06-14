@@ -23,8 +23,10 @@ cols = df.columns.tolist()
 new_cols = [c.replace('0p5', '0.25') for c in cols]
 col_map = {o: n for o, n in zip(cols, new_cols)}
 df = df.rename(columns=col_map)
-dfc = df.replace([0], np.nan).dropna()
-samples = dfc.columns.tolist()[5:]
+df.insert(2, 'HGNC_Gene_Name', [mapping.get_name_from_symbol(sy)
+                                 for sy in df.Gene_Symbol.tolist()])
+dfc = df.replace([0], np.nan).dropna().copy()
+samples = dfc.columns.tolist()[6:]
 
 
 days = [s.split('_')[-1] for s in samples]
@@ -62,9 +64,12 @@ cluster_map = {9: 'transiently upregulated early',
                10: 'downregulated'}
 dfk['kmeans_cluster_name'] = dfk['kmeans_cluster_number'].map(
     cluster_map)
+dfcl = dfk['kmeans_cluster_name'].copy()
+dfg = pd.concat([df, dfcl], axis=1)
+dfg.to_csv('total_proteome_baseline.csv', index=False)
 
-dfk.insert(2, 'HGNC_Gene_Name', [mapping.get_name_from_symbol(sy)
-                                 for sy in dfk.Gene_Symbol.tolist()])
+# dfk.insert(2, 'HGNC_Gene_Name', [mapping.get_name_from_symbol(sy)
+#                                 for sy in dfk.Gene_Symbol.tolist()])
 
 prtns = ['CDK1', 'CDK2', 'CDK4', 'CDK6',
          'CDK7', 'CDK8', 'CDK9', 'CDK12', 'CDK13',
