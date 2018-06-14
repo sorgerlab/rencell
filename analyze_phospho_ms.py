@@ -39,12 +39,19 @@ set2_columns = [s.replace('max_score', 'set2_max_score') for s in set2_columns]
 df_set2.columns = set2_columns
 
 df_meta = pd.read_csv(open(syn.get('syn11025099').path))
+df_meta = df_meta.replace(['Set1_Day_0_5'], 'Set1_Day_0.25')
+df_meta = df_meta.replace(['Set2_Day_0_5'], 'Set2_Day_0.25')
 samples = df_meta['Sample'].tolist()
 df_merged = pr.merge_batches([df_set1, df_set2],
                              df_meta, pMS=True, norm=False)
 df_merged[samples] = df_merged[samples].replace([''], np.nan)
 df_merged[samples] = df_merged[samples].astype(float)
 df_merged.to_csv('pMS.csv')
+dfp = df_merged.copy()
+dfp['Uniprot_Id'] = [s.split('|')[1] for s in dfp.Uniprot_Id.tolist()]
+dfp = pr.correct_gene_names(dfp)
+dfp.insert(1, 'HGNC_Gene_Name', [mapping.get_name_from_symbol(sy)
+                                 for sy in dfp.Gene_Symbol.tolist()])
 
 # Plot PCA
 # --------
@@ -54,15 +61,15 @@ color_dict = {'Set1': (0.97656, 0.19531, 0.19531),
 df_meta.columns = ['tmt_label', 'sample']
 df_meta['set'] = [s.split('_')[0] for s in df_meta['sample'].tolist()]
 df_meta['day'] = [s[5:] for s in df_meta['sample'].tolist()]
-df_pca, ev = pca.compute_pca(df_merged, df_meta)
-dfp = pca.plot_scatter(df_pca, ev, color_col='set',
+df_pca, ev = pca.compute_pca(dfp, df_meta)
+dfpca = pca.plot_scatter(df_pca, ev, color_col='set',
                        color_dict=color_dict)  # annotate_points='day')
 ax = plt.gca()
 ax.invert_yaxis()
 
 # Plot kmeans
 # -----------
-dfc = df_merged.replace([0], np.nan).dropna()
+dfc = dfp.replace([0], np.nan).dropna()
 dfk = kmeans.cluster(dfc, samples, num_clusters=11)
 
 cluster_map = {2: 'upregulated',
@@ -78,9 +85,9 @@ cluster_map = {2: 'upregulated',
                7: 'downregulated early'}
 dfk['kmeans_cluster_name'] = dfk['kmeans_cluster_number'].map(
     cluster_map)
-dfk.insert(1, 'HGNC_Gene_Name', [mapping.get_name_from_symbol(sy)
-                                 for sy in dfk.Gene_Symbol.tolist()])
-dfk.to_csv('phosphoMS_baseline.csv')
+dfcl = dfk['kmeans_cluster_name'].copy()
+dfg = pd.concat([dfp, dfcl], axis=1)
+dfg.to_csv('phosphoMS_baseline.csv')
 
 dfk2 = dfk[dfk.kmeans_cluster_name != 'unperturbed'].copy()
 fig = kmeans.plot(dfk2, df_meta, 'day',
