@@ -9,6 +9,7 @@ import numpy as np
 from msda import enrichr_api as ai
 from msda.clustering import plot_clustermap as pc
 from msda import mapping
+from msda import preprocessing as pr
 
 # Load files from synapse
 # -----------------------
@@ -66,6 +67,15 @@ dfk['kmeans_cluster_name'] = dfk['kmeans_cluster_number'].map(
     cluster_map)
 dfcl = dfk['kmeans_cluster_name'].copy()
 dfg = pd.concat([df, dfcl], axis=1)
+
+# Compute anova
+# -------------
+samples = [s for s in dfg.columns.tolist() if 'Day_' in s]
+grp_index = np.arange(0, 20, 2)
+groups = []
+for i in gr_index:
+    groups.append(samples[i:i+2])
+dfg = pr.compute_anove(dfg, groups)    
 dfg.to_csv('total_proteome_baseline.csv', index=False)
 
 # dfk.insert(2, 'HGNC_Gene_Name', [mapping.get_name_from_symbol(sy)

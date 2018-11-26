@@ -87,6 +87,15 @@ dfk['kmeans_cluster_name'] = dfk['kmeans_cluster_number'].map(
     cluster_map)
 dfcl = dfk['kmeans_cluster_name'].copy()
 dfg = pd.concat([dfp, dfcl], axis=1)
+
+# Compute anova
+# -------------
+samples = [s for s in dfg.columns.tolist() if 'Day_' in s]
+grp_index = np.arange(0, 20, 2)
+groups = []
+for i in gr_index:
+    groups.append(samples[i:i+2])
+dfg = pr.compute_anove(dfg, groups) 
 dfg.to_csv('phosphoMS_baseline.csv')
 
 dfk2 = dfk[dfk.kmeans_cluster_name != 'unperturbed'].copy()
